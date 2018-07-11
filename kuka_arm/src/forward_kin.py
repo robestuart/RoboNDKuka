@@ -38,13 +38,13 @@ def HomTransform(q_1, alpha_0, d_1, a_0):
 #### Homogenous Transforms between neighboring links
 # base_link to link1
 
-T0_1 = HomTransform(q1, alpha0, d1, a0).T0_1.subs(s)
-T1_2 = HomTransform(q2, alpha1, d2, a1).T1_2.subs(s)
-T2_3 = HomTransform(q3, alpha2, d3, a2).T2_3.subs(s)
-T3_4 = HomTransform(q4, alpha3, d4, a3).T3_4.subs(s)
-T4_5 = HomTransform(q5, alpha4, d5, a4).T4_5.subs(s)
-T5_6 = HomTransform(q6, alpha5, d6, a5).T5_6.subs(s)
-T6_G = HomTransform(q7, alpha6, d7, a6).T6_G.subs(s)
+T0_1 = HomTransform(q1, alpha0, d1, a0).subs(s)
+T1_2 = HomTransform(q2, alpha1, d2, a1).subs(s)
+T2_3 = HomTransform(q3, alpha2, d3, a2).subs(s)
+T3_4 = HomTransform(q4, alpha3, d4, a3).subs(s)
+T4_5 = HomTransform(q5, alpha4, d5, a4).subs(s)
+T5_6 = HomTransform(q6, alpha5, d6, a5).subs(s)
+T6_G = HomTransform(q7, alpha6, d7, a6).subs(s)
 
 # Composition of Homogeneous Tranforms
 T0_2 = simplify(T0_1 * T1_2)    # base_link to link_2
@@ -64,7 +64,7 @@ R_z = Matrix([  [   cos(pi),    -sin(pi),   0,          0],
 
 R_y = Matrix([[     cos(-pi/2), 0,          sin(-pi/2), 0],
                 [   0,          1,          0,          0],
-                [   -sin(pi/2), 0,          cos(-pi/2), 0],
+                [   -sin(-pi/2), 0,          cos(-pi/2), 0],
                 [   0,          0,          0,          1]])
 
 R_corr = simplify(R_z * R_y)
@@ -81,4 +81,7 @@ print("T0_G = ",T0_G.evalf(subs={q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.
 
 # Total Homogenous transform between Base_link and Gripper_link with
 # orientation correction applied
+print(T0_G.shape)
+print(R_corr.shape)
 T_total = simplify(T0_G * R_corr)
+print(T_total)
