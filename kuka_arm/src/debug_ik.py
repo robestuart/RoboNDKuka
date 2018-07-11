@@ -110,19 +110,12 @@ def test_code(test_case):
         return transf
 
     T0_1 = HomTransform(q1, alpha0, d1, a0).subs(s)
-    # print('T0_1')
     T1_2 = HomTransform(q2, alpha1, d2, a1).subs(s)
-    # print('T1_2')
     T2_3 = HomTransform(q3, alpha2, d3, a2).subs(s)
-    # print('T2_3')
     T3_4 = HomTransform(q4, alpha3, d4, a3).subs(s)
-    # print('T3_4')
     T4_5 = HomTransform(q5, alpha4, d5, a4).subs(s)
-    # print('T4_5')
     T5_6 = HomTransform(q6, alpha5, d6, a5).subs(s)
-    # print('T5_6')
     T6_G = HomTransform(q7, alpha6, d7, a6).subs(s)
-    # print('T6_G')
     #T6_G = HomTransform(q7, alpha6, d7, a6).T6_G.subs(s)
 
     # Create individual transformation matrices
