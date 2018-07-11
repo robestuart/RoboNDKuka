@@ -109,32 +109,97 @@ def test_code(test_case):
                             [       0,                        0,                      0,              1               ]])
         return transf
 
-    T0_1 = HomTransform(q1, alpha0, d1, a0)
-    T1_2 = HomTransform(q2, alpha1, d2, a1)
-    T2_3 = HomTransform(q3, alpha2, d3, a2)
-    T3_4 = HomTransform(q4, alpha3, d4, a3)
-    T4_5 = HomTransform(q5, alpha4, d5, a4)
-    T5_6 = HomTransform(q6, alpha5, d6, a5)
-    T6_G = HomTransform(q7, alpha6, d7, a6)
+    T0_1 = HomTransform(q1, alpha0, d1, a0).subs(s)
+    # print('T0_1')
+    T1_2 = HomTransform(q2, alpha1, d2, a1).subs(s)
+    # print('T1_2')
+    T2_3 = HomTransform(q3, alpha2, d3, a2).subs(s)
+    # print('T2_3')
+    T3_4 = HomTransform(q4, alpha3, d4, a3).subs(s)
+    # print('T3_4')
+    T4_5 = HomTransform(q5, alpha4, d5, a4).subs(s)
+    # print('T4_5')
+    T5_6 = HomTransform(q6, alpha5, d6, a5).subs(s)
+    # print('T5_6')
+    T6_G = HomTransform(q7, alpha6, d7, a6).subs(s)
+    # print('T6_G')
     #T6_G = HomTransform(q7, alpha6, d7, a6).T6_G.subs(s)
 
     # Create individual transformation matrices
 
-    T0_2 = simplify(T0_1 * T1_2)    # base_link to link_2
-    T0_3 = simplify(T0_2 * T2_3)
-    T0_4 = simplify(T0_3 * T3_4)
-    T0_5 = simplify(T0_4 * T4_5)
-    T0_6 = simplify(T0_5 * T5_6)
-    T0_G = simplify(T0_6 * T6_G)
+    # T0_2 = simplify(T0_1 * T1_2)    # base_link to link_2
+    # # print('T0_2')
+    # T0_3 = simplify(T0_2 * T2_3)
+    # # print('T0_3')
+    # T0_4 = simplify(T0_3 * T3_4)
+    # # print('T0_4')
+    # T0_5 = simplify(T0_4 * T4_5)
+    # # print('T0_5')
+    # T0_6 = simplify(T0_5 * T5_6)
+    # # print('T0_6')
+    # T0_G = simplify(T0_6 * T6_G)
+    # print('T0_G')
+    T0_G = T0_1*T1_2*T2_3*T3_4*T4_5*T5_6*T6_G
 
-    R_corr = simplify(Rot('Z', pi) * Rot('Y', pi/2))
+    R_corr = simplify(Rot('Z', pi) * Rot('Y', -pi/2))
+    T_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([[0,0,0,1]]))
 
-    theta1 = 0
-    theta2 = 0
-    theta3 = 0
-    theta4 = 0
-    theta5 = 0
-    theta6 = 0
+    px = req.poses[x].position.x
+    py = req.poses[x].position.y
+    pz = req.poses[x].position.z
+
+    (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
+        [req.poses[x].orientation.x, req.poses[x].orientation.y,
+            req.poses[x].orientation.z, req.poses[x].orientation.w])
+
+
+    # start of proper IK code
+
+    # Compensate for rotation discrepancy between DH parameters and Gazebo
+            
+    # Take the euler angles from the simulation for the end effector pose
+    # use these to calculate the rotation matrix from the base_link to the end effector
+    base_to_EE_RMat = Rot('Z', yaw)*Rot('Y',pitch)*Rot('X', roll)*R_corr
+
+    dWc_g = s[d7] #s[d6] - l
+
+    n = base_to_EE_RMat[:,2]
+
+    wc = Matrix([[px],
+                [py],
+                [pz]])
+    wc = wc-dWc_g*n
+    
+    ## calculating triangle angles for IK
+    A = sqrt(s[a3]**2 + s[d4]**2)
+    Bx = sqrt(wc[0]**2 + wc[1]**2) - s[a1]
+    Bz = wc[2] - s[d1]
+    B = sqrt(Bx**2 + Bz**2)
+    C = s[a2]
+
+    angle_a = acos((-A**2 + B**2 + C**2)/(2*B*C))
+    angle_b = acos((-B**2 + A**2 + C**2)/(2*A*C))
+    angle_c = acos((-C**2 + B**2 + A**2)/(2*B*A))
+
+    theta1 = atan2(wc[1], wc[0])
+    theta2 = pi/2 - atan2(Bz, Bx) - angle_a
+    theta3 = pi/2 - angle_b + atan2(s[a3], s[d4])
+
+    # Create rotation matrix for first 3 links using the solved for joint angles
+    T0_3 = T0_1 * T1_2 * T2_3
+    R0_3 = T0_3[0:3, 0:3].evalf(subs={q1:theta1, q2:theta2, q3:theta3})
+    
+    # create rotation matrix from link 3 to link 6 using the fact that 
+    # base_to_EE_RMat = R0_3 * R3_6
+    R3_6 = R0_3.inv("LU") * base_to_EE_RMat
+
+    ex_angle_1 = atan2(R3_6[2,1], R3_6[2,2])
+    ex_angle_2 = atan2(-R3_6, sqrt(R3_6[0,0]**2 + R3_6[1,0]**2)) 
+    ex_angle_3 = atan2(R3_6[1,0], R3_6[0,0])
+
+    theta4 = ex_angle_1
+    theta5 = ex_angle_2
+    theta6 = ex_angle_3
 
     ## 
     ########################################################################################
@@ -144,13 +209,18 @@ def test_code(test_case):
     ## as the input and output the position of your end effector as your_ee = [x,y,z]
 
     ## (OPTIONAL) YOUR CODE HERE!
+    tmp = T0_G.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:theta4, q5:theta5, q6:theta6})
+    # print(tmp.shape)
+    # print(R_corr.shape)
+    # T_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([0,0,0,1]))
+    T_total =  tmp * T_corr
 
     ## End your code input for forward kinematics here!
     ########################################################################################
 
     ## For error analysis please set the following variables of your WC location and EE location in the format of [x,y,z]
-    your_wc = [1,1,1] # <--- Load your calculated WC values in this array
-    your_ee = [1,1,1] # <--- Load your calculated end effector value from your forward kinematics
+    your_wc = wc#[1,1,1] # <--- Load your calculated WC values in this array
+    your_ee = T_total #[1,1,1] # <--- Load your calculated end effector value from your forward kinematics
     ########################################################################################
 
     ## Error analysis
