@@ -197,11 +197,13 @@ def test_code(test_case):
     ex_angle_2 = atan2(-R3_6, sqrt(R3_6[0,0]**2 + R3_6[1,0]**2)) 
     ex_angle_3 = atan2(R3_6[1,0], R3_6[0,0])
 
-    theta4 = ex_angle_1
-    theta5 = ex_angle_2
-    theta6 = ex_angle_3
-
-    ## 
+    # theta4 = ex_angle_1
+    # theta5 = ex_angle_2
+    # theta6 = ex_angle_3
+    # theta5 = atan2(sqrt(R3_6[0,2]*R3_6[0,2] + R3_6[2,2]*R3_6[2,2]), R3_6[1,2])
+    theta4 = atan2(R3_6[2,2], -R3_6[0,2])
+    theta5 = atan2(sqrt(R3_6[0,2]**2 + R3_6[2,2]**2), R3_6[1,2])
+    theta6 = atan2(-R3_6[1,1], R3_6[1,0])    ## 
     ########################################################################################
     
     ########################################################################################
@@ -209,18 +211,18 @@ def test_code(test_case):
     ## as the input and output the position of your end effector as your_ee = [x,y,z]
 
     ## (OPTIONAL) YOUR CODE HERE!
-    tmp = T0_G.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:theta4, q5:theta5, q6:theta6})
+    tmp = T0_G.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:theta4, q5:theta5, q6:theta6})#[0:3,0:4]
     # print(tmp.shape)
     # print(R_corr.shape)
     # T_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([0,0,0,1]))
-    T_total =  tmp * T_corr
+    T_total =  tmp# * T_corr
 
     ## End your code input for forward kinematics here!
     ########################################################################################
 
     ## For error analysis please set the following variables of your WC location and EE location in the format of [x,y,z]
     your_wc = wc#[1,1,1] # <--- Load your calculated WC values in this array
-    your_ee = T_total #[1,1,1] # <--- Load your calculated end effector value from your forward kinematics
+    your_ee = [T_total[0,3], T_total[1,3], T_total[2,3]]#T_total #[1,1,1] # <--- Load your calculated end effector value from your forward kinematics
     ########################################################################################
 
     ## Error analysis
@@ -271,6 +273,6 @@ def test_code(test_case):
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 1
+    test_case_number = 3
 
     test_code(test_cases[test_case_number])
