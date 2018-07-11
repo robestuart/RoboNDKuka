@@ -71,10 +71,13 @@ def handle_calculate_IK(req):
                                 [       0,                        0,                      0,              1               ]])
             return transf
 	
-        T3_4 = HomTransform(q4, alpha3, d4, a3).T3_4.subs(s)
-        T4_5 = HomTransform(q5, alpha4, d5, a4).T4_5.subs(s)
-        T5_6 = HomTransform(q6, alpha5, d6, a5).T5_6.subs(s)
-        T6_G = HomTransform(q7, alpha6, d7, a6).T6_G.subs(s)
+        T0_1 = HomTransform(q1, alpha0, d1, a0).subs(s)
+        T1_2 = HomTransform(q2, alpha1, d2, a1).subs(s)
+        T2_3 = HomTransform(q3, alpha2, d3, a2).subs(s)
+        T3_4 = HomTransform(q4, alpha3, d4, a3).subs(s)
+        T4_5 = HomTransform(q5, alpha4, d5, a4).subs(s)
+        T5_6 = HomTransform(q6, alpha5, d6, a5).subs(s)
+        T6_G = HomTransform(q7, alpha6, d7, a6).subs(s)
 
 	    # Create individual transformation matrices
 	
@@ -96,8 +99,9 @@ def handle_calculate_IK(req):
                         [   -sin(pi/2), 0,          cos(-pi/2), 0],
                         [   0,          0,          0,          1]])
 
-        R_corr = simplify(R_z * R_y)
-        
+        R_corr = simplify(Rot('Z', pi) * Rot('Y', -pi/2))#simplify(R_z * R_y)
+        T_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([[0,0,0,1]]))
+
         ###
 
         # Initialize service response
@@ -122,26 +126,29 @@ def handle_calculate_IK(req):
             
             # Take the euler angles from the simulation for the end effector pose
             # use these to calculate the rotation matrix from the base_link to the end effector
-            Rrpy = Rot(Z, yaw)*Rot(Y,pitch)*Rot(X, roll)*R_corr
-            # extract the z-normal components from the Rrpy matrix
-            nx = Rrpy[0,2]
-            ny = Rrpy[1,2]
-            nz = Rrpy[2,2]
+            #Rrpy = Rot(Z, yaw)*Rot(Y,pitch)*Rot(X, roll)*R_corr
             
+            base_to_EE_RMat = Rot('Z', yaw)*Rot('Y',pitch)*Rot('X', roll)*R_corr
+            # extract the z-normal components from the Rrpy matrix
+            # nx = Rrpy[0,2]
+            # ny = Rrpy[1,2]
+            # nz = Rrpy[2,2]
+            
+            dWc_g = s[d7] #s[d6] - l
+
+            n = base_to_EE_RMat[:,2]
+
+            wc = Matrix([[px],
+                        [py],
+                        [pz]])
+            wc = wc-dWc_g*n
+
             # Calculate joint angles using Geometric IK method
             
-            # find the location of the wrist center
-            # length of end--effector
-            #l = s[d7]
-            dWC_G = s[d7]#s[d6] - l 
-            
-            wx = px - dWC_G*nx
-            wy = py - dWC_G*ny
-            wz = pz - dWC_G*nz
-
-            A = sqrt(s[a3]**2+s[d4]**2)
-            Bx = sqrt(wx**2 + wy**2) - s[a1]
-            Bz = wz - a[d1]
+                    ## calculating triangle angles for IK
+            A = sqrt(s[a3]**2 + s[d4]**2)
+            Bx = sqrt(wc[0]**2 + wc[1]**2) - s[a1]
+            Bz = wc[2] - s[d1]
             B = sqrt(Bx**2 + Bz**2)
             C = s[a2]
 
@@ -149,27 +156,32 @@ def handle_calculate_IK(req):
             angle_b = acos((-B**2 + A**2 + C**2)/(2*A*C))
             angle_c = acos((-C**2 + B**2 + A**2)/(2*B*A))
 
-            theta1 = atan2(wy,wx)
-            theta2 = pi/2 - atan2(Bz,Bx) - angle_a
-            theta3 = pi/2 - angle_b + atan2(s[a3], s[d4])           # might need to be negative
-            
-            R0_3 = T0_3[0:3, 0:3]
-            R3_6 = R0_3.inv("LU")*Rrpy 
+            theta1 = atan2(wc[1], wc[0])
+            theta2 = pi/2 - atan2(Bz, Bx) - angle_a
+            theta3 = pi/2 - angle_b + atan2(s[a3], s[d4])
 
-            beta = atan2(-R3_6[2,0], sqrt(R_6[0,0]**2 + R_6[1,0]**2))
-            gamma = atan2(R3_6[2,1], R3_6[2,2])
-            alpha = atan2(R3_6[1,0], R3_6[0,0])
+            # Create rotation matrix for first 3 links using the solved for joint angles
+            T0_3 = T0_1 * T1_2 * T2_3
+            R0_3 = T0_3[0:3, 0:3].evalf(subs={q1:theta1, q2:theta2, q3:theta3})
 
-            theta4 = gamma
-            theta5 = beta
-            theta6 = alpha
+            # create rotation matrix from link 3 to link 6 using the fact that 
+            # base_to_EE_RMat = R0_3 * R3_6
+            R3_6 = R0_3.inv("LU") * base_to_EE_RMat
+
+            # beta = atan2(-R3_6[2,0], sqrt(R_6[0,0]**2 + R_6[1,0]**2))
+            # gamma = atan2(R3_6[2,1], R3_6[2,2])
+            # alpha = atan2(R3_6[1,0], R3_6[0,0])
+
+            theta4 = atan2(R3_6[2,2], -R3_6[0,2])
+            theta5 = atan2(sqrt(R3_6[0,2]**2 + R3_6[2,2]**2), R3_6[1,2])
+            theta6 = atan2(-R3_6[1,1], R3_6[1,0]) 
 
             ###
 
             # Populate response for the IK request
             # In the next line replace theta1,theta2...,theta6 by your joint angle variables
-        joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
-        joint_trajectory_list.append(joint_trajectory_point)
+            joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
+            joint_trajectory_list.append(joint_trajectory_point)
 
         rospy.loginfo("length of Joint Trajectory List: %s" % len(joint_trajectory_list))
         return CalculateIKResponse(joint_trajectory_list)
