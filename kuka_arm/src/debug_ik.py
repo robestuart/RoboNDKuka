@@ -118,7 +118,6 @@ def test_code(test_case):
     T4_5 = HomTransform(q5, alpha4, d5, a4).subs(s)
     T5_6 = HomTransform(q6, alpha5, d6, a5).subs(s)
     T6_G = HomTransform(q7, alpha6, d7, a6).subs(s)
-    #T6_G = HomTransform(q7, alpha6, d7, a6).T6_G.subs(s)
 
     # Create individual transformation matrices
 
@@ -155,6 +154,7 @@ def test_code(test_case):
 
     # Take the euler angles from the simulation for the end effector pose
     # use these to calculate the rotation matrix from the base_link to the end effector including the correction rotations
+    # extrinsic euler angles XYZ
     base_to_EE_RMat = Rot('Z', yaw)*Rot('Y',pitch)*Rot('X', roll)*R_corr
 
     # length from wrist center to end effector gripper
@@ -171,8 +171,8 @@ def test_code(test_case):
     wc = wc - dWc_g * z_vect_EE
     
     # look down on link1 from above, project onto x-y plane to get first joint angle
-
     theta1 = atan2(wc[1], wc[0])
+
     # projecting link2-link3-link5(WC) onto a vertical plane and calculating joint angles using law of cosines
     A = sqrt(s[a3]**2 + s[d4]**2)
     Bx = sqrt(wc[0]**2 + wc[1]**2) - s[a1]
@@ -189,8 +189,8 @@ def test_code(test_case):
     theta2 = pi/2 - atan2(Bz, Bx) - angle_a
     theta3 = pi/2 - angle_b + atan2(s[a3], s[d4])
 
-    # Create analytical rotation matrix for first 3 joints from the cascade of hom transformations
-    # plug in the theta values for those joints found from
+    # Create analytical rotation matrix for first 3 joints from the cascade of homogenous transformations
+    # plug in the theta values for those joints found from the trig analysis above
     T0_3 = T0_1 * T1_2 * T2_3
     R0_3 = T0_3[0:3, 0:3].evalf(subs={q1:theta1, q2:theta2, q3:theta3})
     
@@ -198,6 +198,7 @@ def test_code(test_case):
     # base_to_EE_RMat = R0_3 * R3_6
     R3_6 = R0_3.inv("LU") * base_to_EE_RMat
     T3_6 = simplify(T3_4*T4_5*T5_6)
+    # print the analytical matrix to solve for euler angles using trig identities and atan2
     # print(T3_6)
 
     # use the rotation matrix for the last 3 joints to solver for the three joint angles
@@ -214,17 +215,40 @@ def test_code(test_case):
 
     def check_2pi(angle, min, max):
         possible = [angle]
-        if angle + 2*pi < max:
-            possible.append(angle + 2*pi)
-            if angle + 2*2*pi < max:
-                possible.append(angle + 2*2*pi)
-        if min < angle - 2*pi:
-            possible.append(angle - 2*pi)
-            if min < angle - 2*2*pi:
-                possible.append(angle - 2*2*pi)
+        
+        # adding positive 2pi
+        i = 1
+        while(True):
+            add_2pi = angle + 2*pi*i
+
+            if (add_2pi < max):
+                possible.append(add_2pi)
+                i += 1
+            else:
+                break
+        
+        # adding negative 2pi
+        i = 1
+        while(True):
+            add_2pi = angle - 2*pi*i
+
+            if (min < add_2pi):
+                possible.append(add_2pi)
+                i+=1
+            else:
+                break
+
+        # if angle + 2*pi < max:
+        #     possible.append(angle + 2*pi)
+        #     if angle + 2*2*pi < max:
+        #         possible.append(angle + 2*2*pi)
+        # if min < angle - 2*pi:
+        #     possible.append(angle - 2*pi)
+        #     if min < angle - 2*2*pi:
+        #         possible.append(angle - 2*2*pi)
         return possible
 
-    def ProduceEquiv(theta1, theta2, theta3):
+    def ProduceEquivAngles(theta1, theta2, theta3):
         t1_pos = check_2pi(theta1, -6.11, 6.11)
         t2_pos = check_2pi(theta2, -2.18, 2.18)
         t3_pos = check_2pi(theta3, -6.11, 6.11)
@@ -238,7 +262,7 @@ def test_code(test_case):
         for c in combos:
             print(c)
         return combos
-    solutions = ProduceEquiv(theta4, theta5, theta6)
+    solutions = ProduceEquivAngles(theta4, theta5, theta6)
     
     
     def testSols(theta1, theta2, theta3, theta4, theta5, theta6, wc, test_case):
@@ -249,11 +273,7 @@ def test_code(test_case):
         ## as the input and output the position of your end effector as your_ee = [x,y,z]
 
         ## (OPTIONAL) YOUR CODE HERE!
-        tmp = T0_G.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:theta4, q5:theta5, q6:theta6})#[0:3,0:4]
-        # print(tmp.shape)
-        # print(R_corr.shape)
-        # T_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([0,0,0,1]))
-        T_total =  tmp# * T_corr
+        T_total =  T0_G.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:theta4, q5:theta5, q6:theta6})
 
         ## End your code input for forward kinematics here!
         ########################################################################################
@@ -305,14 +325,26 @@ def test_code(test_case):
             print ("End effector error for y position is: %04.8f" % ee_y_e)
             print ("End effector error for z position is: %04.8f" % ee_z_e)
             print ("Overall end effector offset is: %04.8f units \n" % ee_offset)
-
-    for s in solutions:
         
-        testSols(theta1, theta2, theta3, s[0], s[1], s[2], wc, test_case)
+        return (t_1_e, t_2_e, t_3_e, t_4_e, t_5_e, t_6_e)
 
+    errors = []
+    for s in solutions:
+        errors.append(testSols(theta1, theta2, theta3, s[0], s[1], s[2], wc, test_case))
+    
+    print("\treal\tmine\terror")
+    print("t1:\t{:.2f}\t{:.2f}\t{:.2f}".format(test_case[2][0], theta1.evalf(), errors[0][0].evalf()))
+    print("t2:\t{:.2f}\t{:.2f}\t{:.2f}".format(test_case[2][1], theta2.evalf(), errors[0][1].evalf()))
+    print("t3:\t{:.2f}\t{:.2f}\t{:.2f}".format(test_case[2][2], theta3.evalf(), errors[0][2].evalf()))
+    for i,s in enumerate(solutions):
+        print('\n\n')
+        print("t4:\t{:.2f}\t{:.2f}\t{:.2f}".format(test_case[2][3], s[0].evalf(), errors[i][3].evalf()))
+        print("t5:\t{:.2f}\t{:.2f}\t{:.2f}".format(test_case[2][4], s[1].evalf(), errors[i][4].evalf()))
+        print("t6:\t{:.2f}\t{:.2f}\t{:.2f}".format(test_case[2][5], s[2].evalf(), errors[i][5].evalf()))
+        # print(errors)
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 2
+    test_case_number = 1
 
     test_code(test_cases[test_case_number])
