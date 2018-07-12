@@ -198,14 +198,10 @@ def test_code(test_case):
     # base_to_EE_RMat = R0_3 * R3_6
     R3_6 = R0_3.inv("LU") * base_to_EE_RMat
     T3_6 = simplify(T3_4*T4_5*T5_6)
-    print(T3_6)
+    # print(T3_6)
 
     # use the rotation matrix for the last 3 joints to solver for the three joint angles
     theta4 = atan2(R3_6[2,2], -R3_6[0,2])
-    print(theta4)
-    print(atan2(R3_6[2,2] + np.pi, -R3_6[0,2]+ np.pi))
-    print(atan2(R3_6[2,2] + 2*np.pi, -R3_6[0,2]+ 2*np.pi))
-
     theta5 = atan2(sqrt(R3_6[0,2]**2 + R3_6[2,2]**2), R3_6[1,2])
     theta6 = atan2(-R3_6[1,1], R3_6[1,0])    ## 
 
