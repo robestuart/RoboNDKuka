@@ -2,6 +2,7 @@ from sympy import *
 from time import time
 from mpmath import radians
 import tf
+import itertools
 
 '''
 Format of test case is [ [[EE position],[EE orientation as quaternions]],[WC location],[joint angles]]
@@ -156,47 +157,82 @@ def test_code(test_case):
 
     dWc_g = s[d7] #s[d6] - l
 
-    n = base_to_EE_RMat[:,2]
+    z_vect_EE = base_to_EE_RMat[:,2]
 
     wc = Matrix([[px],
                 [py],
                 [pz]])
-    wc = wc-dWc_g*n
+    wc = wc - dWc_g * z_vect_EE
     
-    ## calculating triangle angles for IK
+    # look down on link1 from above, project onto x-y plane to get first joint angle
+
+    theta1 = atan2(wc[1], wc[0])
+    # projecting link2-link3-link5(WC) onto a vertical plane and calculating joint angles using law of cosines
     A = sqrt(s[a3]**2 + s[d4]**2)
     Bx = sqrt(wc[0]**2 + wc[1]**2) - s[a1]
     Bz = wc[2] - s[d1]
     B = sqrt(Bx**2 + Bz**2)
     C = s[a2]
 
+    # internal angles of triangle formed by link2-link3-link5
     angle_a = acos((-A**2 + B**2 + C**2)/(2*B*C))
     angle_b = acos((-B**2 + A**2 + C**2)/(2*A*C))
     angle_c = acos((-C**2 + B**2 + A**2)/(2*B*A))
 
-    theta1 = atan2(wc[1], wc[0])
+    # use geometric identities and directions found from inspecting the model calculate the joint angles
     theta2 = pi/2 - atan2(Bz, Bx) - angle_a
     theta3 = pi/2 - angle_b + atan2(s[a3], s[d4])
 
-    # Create rotation matrix for first 3 links using the solved for joint angles
+    # Create analytical rotation matrix for first 3 joints from the cascade of hom transformations
+    # plug in the theta values for those joints found from
     T0_3 = T0_1 * T1_2 * T2_3
     R0_3 = T0_3[0:3, 0:3].evalf(subs={q1:theta1, q2:theta2, q3:theta3})
     
     # create rotation matrix from link 3 to link 6 using the fact that 
     # base_to_EE_RMat = R0_3 * R3_6
     R3_6 = R0_3.inv("LU") * base_to_EE_RMat
+    print(R3_6)
+    # ex_angle_1 = atan2(R3_6[2,1], R3_6[2,2])
+    # ex_angle_2 = atan2(-R3_6, sqrt(R3_6[0,0]**2 + R3_6[1,0]**2)) 
+    # ex_angle_3 = atan2(R3_6[1,0], R3_6[0,0])
 
-    ex_angle_1 = atan2(R3_6[2,1], R3_6[2,2])
-    ex_angle_2 = atan2(-R3_6, sqrt(R3_6[0,0]**2 + R3_6[1,0]**2)) 
-    ex_angle_3 = atan2(R3_6[1,0], R3_6[0,0])
-
-    # theta4 = ex_angle_1
-    # theta5 = ex_angle_2
-    # theta6 = ex_angle_3
-    # theta5 = atan2(sqrt(R3_6[0,2]*R3_6[0,2] + R3_6[2,2]*R3_6[2,2]), R3_6[1,2])
+    
     theta4 = atan2(R3_6[2,2], -R3_6[0,2])
     theta5 = atan2(sqrt(R3_6[0,2]**2 + R3_6[2,2]**2), R3_6[1,2])
     theta6 = atan2(-R3_6[1,1], R3_6[1,0])    ## 
+
+    # equivalent rotations can be calculated by adding 2pi to any elements but it cannot exceed
+    # the physical constraints of the robot
+    # -6.11 < theta4 < 6.11
+    # -2.18 < theta5 < 2.18
+    # -6.11 < theta6 < 6.11
+
+    def check_2pi(angle, min, max):
+        possible = [angle]
+        if angle + 2*pi < max:
+            possible.append[angle + 2*pi]
+            if angle + 2*2*pi < max:
+                possible.append[angle + 2*2*pi]
+        if min < angle - 2*pi:
+            possible.append[angle - 2*pi]
+            if min < angle - 2*2*pi:
+                possible.append[angle - 2*2*pi]
+        return possible
+
+    def ProduceEquiv(theta1, theta2, theta3):
+        t1_pos = check_2pi(theta1, -6.11, 6.11)
+        t2_pos = check_2pi(theta2, -2.18, 2.18)
+        t3_pos = check_2pi(theta3, -6.11, 6.11)
+
+        combos = []
+        for t1 in t1_pos:
+            for t2 in t2_pos:
+                for t3 in t3_pos:
+                    combos.append(t1,t2,t3)
+
+        for c in combos:
+            pass
+
     ########################################################################################
     
     ########################################################################################
