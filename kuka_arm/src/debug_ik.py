@@ -3,6 +3,7 @@ from time import time
 from mpmath import radians
 import tf
 import itertools
+import numpy as np
 
 '''
 Format of test case is [ [[EE position],[EE orientation as quaternions]],[WC location],[joint angles]]
@@ -135,6 +136,9 @@ def test_code(test_case):
     # print('T0_G')
     T0_G = T0_1*T1_2*T2_3*T3_4*T4_5*T5_6*T6_G
 
+    # correct the end effector orientation difference between DH table and the urdf file
+    # by rotating about z pi, and about y -pi/2
+    # add the extra row and column to make it a hom transform
     R_corr = simplify(Rot('Z', pi) * Rot('Y', -pi/2))
     T_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([[0,0,0,1]]))
 
@@ -149,16 +153,18 @@ def test_code(test_case):
 
     # start of proper IK code
 
-    # Compensate for rotation discrepancy between DH parameters and Gazebo
-            
     # Take the euler angles from the simulation for the end effector pose
-    # use these to calculate the rotation matrix from the base_link to the end effector
+    # use these to calculate the rotation matrix from the base_link to the end effector including the correction rotations
     base_to_EE_RMat = Rot('Z', yaw)*Rot('Y',pitch)*Rot('X', roll)*R_corr
 
+    # length from wrist center to end effector gripper
     dWc_g = s[d7] #s[d6] - l
 
+    # the vector of the z-axis of the end effector
     z_vect_EE = base_to_EE_RMat[:,2]
 
+
+    # wrist center is located along the end effector's z-axis in the negative direction 
     wc = Matrix([[px],
                 [py],
                 [pz]])
@@ -191,16 +197,19 @@ def test_code(test_case):
     # create rotation matrix from link 3 to link 6 using the fact that 
     # base_to_EE_RMat = R0_3 * R3_6
     R3_6 = R0_3.inv("LU") * base_to_EE_RMat
-    print(R3_6)
-    # ex_angle_1 = atan2(R3_6[2,1], R3_6[2,2])
-    # ex_angle_2 = atan2(-R3_6, sqrt(R3_6[0,0]**2 + R3_6[1,0]**2)) 
-    # ex_angle_3 = atan2(R3_6[1,0], R3_6[0,0])
+    T3_6 = simplify(T3_4*T4_5*T5_6)
+    print(T3_6)
 
-    
+    # use the rotation matrix for the last 3 joints to solver for the three joint angles
     theta4 = atan2(R3_6[2,2], -R3_6[0,2])
+    print(theta4)
+    print(atan2(R3_6[2,2] + np.pi, -R3_6[0,2]+ np.pi))
+    print(atan2(R3_6[2,2] + 2*np.pi, -R3_6[0,2]+ 2*np.pi))
+
     theta5 = atan2(sqrt(R3_6[0,2]**2 + R3_6[2,2]**2), R3_6[1,2])
     theta6 = atan2(-R3_6[1,1], R3_6[1,0])    ## 
 
+    # since atan2 is periodic about 2pi
     # equivalent rotations can be calculated by adding 2pi to any elements but it cannot exceed
     # the physical constraints of the robot
     # -6.11 < theta4 < 6.11
@@ -210,13 +219,13 @@ def test_code(test_case):
     def check_2pi(angle, min, max):
         possible = [angle]
         if angle + 2*pi < max:
-            possible.append[angle + 2*pi]
+            possible.append(angle + 2*pi)
             if angle + 2*2*pi < max:
-                possible.append[angle + 2*2*pi]
+                possible.append(angle + 2*2*pi)
         if min < angle - 2*pi:
-            possible.append[angle - 2*pi]
+            possible.append(angle - 2*pi)
             if min < angle - 2*2*pi:
-                possible.append[angle - 2*2*pi]
+                possible.append(angle - 2*2*pi)
         return possible
 
     def ProduceEquiv(theta1, theta2, theta3):
@@ -228,80 +237,86 @@ def test_code(test_case):
         for t1 in t1_pos:
             for t2 in t2_pos:
                 for t3 in t3_pos:
-                    combos.append(t1,t2,t3)
+                    combos.append((t1,t2,t3))
 
         for c in combos:
-            pass
-
-    ########################################################################################
+            print(c)
+        return combos
+    solutions = ProduceEquiv(theta4, theta5, theta6)
     
-    ########################################################################################
-    ## For additional debugging add your forward kinematics here. Use your previously calculated thetas
-    ## as the input and output the position of your end effector as your_ee = [x,y,z]
+    
+    def testSols(theta1, theta2, theta3, theta4, theta5, theta6, wc, test_case):
+        ########################################################################################
+        
+        ########################################################################################
+        ## For additional debugging add your forward kinematics here. Use your previously calculated thetas
+        ## as the input and output the position of your end effector as your_ee = [x,y,z]
 
-    ## (OPTIONAL) YOUR CODE HERE!
-    tmp = T0_G.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:theta4, q5:theta5, q6:theta6})#[0:3,0:4]
-    # print(tmp.shape)
-    # print(R_corr.shape)
-    # T_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([0,0,0,1]))
-    T_total =  tmp# * T_corr
+        ## (OPTIONAL) YOUR CODE HERE!
+        tmp = T0_G.evalf(subs={q1:theta1, q2:theta2, q3:theta3, q4:theta4, q5:theta5, q6:theta6})#[0:3,0:4]
+        # print(tmp.shape)
+        # print(R_corr.shape)
+        # T_corr = R_corr.row_join(Matrix([[0],[0],[0]])).col_join(Matrix([0,0,0,1]))
+        T_total =  tmp# * T_corr
 
-    ## End your code input for forward kinematics here!
-    ########################################################################################
+        ## End your code input for forward kinematics here!
+        ########################################################################################
 
-    ## For error analysis please set the following variables of your WC location and EE location in the format of [x,y,z]
-    your_wc = wc#[1,1,1] # <--- Load your calculated WC values in this array
-    your_ee = [T_total[0,3], T_total[1,3], T_total[2,3]]#T_total #[1,1,1] # <--- Load your calculated end effector value from your forward kinematics
-    ########################################################################################
+        ## For error analysis please set the following variables of your WC location and EE location in the format of [x,y,z]
+        your_wc = wc#[1,1,1] # <--- Load your calculated WC values in this array
+        your_ee = [T_total[0,3], T_total[1,3], T_total[2,3]]#T_total #[1,1,1] # <--- Load your calculated end effector value from your forward kinematics
+        ########################################################################################
 
-    ## Error analysis
-    print ("\nTotal run time to calculate joint angles from pose is %04.4f seconds" % (time()-start_time))
+        ## Error analysis
+        print ("\nTotal run time to calculate joint angles from pose is %04.4f seconds" % (time()-start_time))
 
-    # Find WC error
-    if not(sum(your_wc)==3):
-        wc_x_e = abs(your_wc[0]-test_case[1][0])
-        wc_y_e = abs(your_wc[1]-test_case[1][1])
-        wc_z_e = abs(your_wc[2]-test_case[1][2])
-        wc_offset = sqrt(wc_x_e**2 + wc_y_e**2 + wc_z_e**2)
-        print ("\nWrist error for x position is: %04.8f" % wc_x_e)
-        print ("Wrist error for y position is: %04.8f" % wc_y_e)
-        print ("Wrist error for z position is: %04.8f" % wc_z_e)
-        print ("Overall wrist offset is: %04.8f units" % wc_offset)
+        # Find WC error
+        if not(sum(your_wc)==3):
+            wc_x_e = abs(your_wc[0]-test_case[1][0])
+            wc_y_e = abs(your_wc[1]-test_case[1][1])
+            wc_z_e = abs(your_wc[2]-test_case[1][2])
+            wc_offset = sqrt(wc_x_e**2 + wc_y_e**2 + wc_z_e**2)
+            print ("\nWrist error for x position is: %04.8f" % wc_x_e)
+            print ("Wrist error for y position is: %04.8f" % wc_y_e)
+            print ("Wrist error for z position is: %04.8f" % wc_z_e)
+            print ("Overall wrist offset is: %04.8f units" % wc_offset)
 
-    # Find theta errors
-    t_1_e = abs(theta1-test_case[2][0])
-    t_2_e = abs(theta2-test_case[2][1])
-    t_3_e = abs(theta3-test_case[2][2])
-    t_4_e = abs(theta4-test_case[2][3])
-    t_5_e = abs(theta5-test_case[2][4])
-    t_6_e = abs(theta6-test_case[2][5])
-    print ("\nTheta 1 error is: %04.8f" % t_1_e)
-    print ("Theta 2 error is: %04.8f" % t_2_e)
-    print ("Theta 3 error is: %04.8f" % t_3_e)
-    print ("Theta 4 error is: %04.8f" % t_4_e)
-    print ("Theta 5 error is: %04.8f" % t_5_e)
-    print ("Theta 6 error is: %04.8f" % t_6_e)
-    print ("\n**These theta errors may not be a correct representation of your code, due to the fact \
-           \nthat the arm can have muliple positions. It is best to add your forward kinmeatics to \
-           \nconfirm whether your code is working or not**")
-    print (" ")
+        # Find theta errors
+        t_1_e = abs(theta1-test_case[2][0])
+        t_2_e = abs(theta2-test_case[2][1])
+        t_3_e = abs(theta3-test_case[2][2])
+        t_4_e = abs(theta4-test_case[2][3])
+        t_5_e = abs(theta5-test_case[2][4])
+        t_6_e = abs(theta6-test_case[2][5])
+        print ("\nTheta 1 error is: %04.8f" % t_1_e)
+        print ("Theta 2 error is: %04.8f" % t_2_e)
+        print ("Theta 3 error is: %04.8f" % t_3_e)
+        print ("Theta 4 error is: %04.8f" % t_4_e)
+        print ("Theta 5 error is: %04.8f" % t_5_e)
+        print ("Theta 6 error is: %04.8f" % t_6_e)
+        print ("\n**These theta errors may not be a correct representation of your code, due to the fact \
+            \nthat the arm can have muliple positions. It is best to add your forward kinmeatics to \
+            \nconfirm whether your code is working or not**")
+        print (" ")
 
-    # Find FK EE error
-    if not(sum(your_ee)==3):
-        ee_x_e = abs(your_ee[0]-test_case[0][0][0])
-        ee_y_e = abs(your_ee[1]-test_case[0][0][1])
-        ee_z_e = abs(your_ee[2]-test_case[0][0][2])
-        ee_offset = sqrt(ee_x_e**2 + ee_y_e**2 + ee_z_e**2)
-        print ("\nEnd effector error for x position is: %04.8f" % ee_x_e)
-        print ("End effector error for y position is: %04.8f" % ee_y_e)
-        print ("End effector error for z position is: %04.8f" % ee_z_e)
-        print ("Overall end effector offset is: %04.8f units \n" % ee_offset)
+        # Find FK EE error
+        if not(sum(your_ee)==3):
+            ee_x_e = abs(your_ee[0]-test_case[0][0][0])
+            ee_y_e = abs(your_ee[1]-test_case[0][0][1])
+            ee_z_e = abs(your_ee[2]-test_case[0][0][2])
+            ee_offset = sqrt(ee_x_e**2 + ee_y_e**2 + ee_z_e**2)
+            print ("\nEnd effector error for x position is: %04.8f" % ee_x_e)
+            print ("End effector error for y position is: %04.8f" % ee_y_e)
+            print ("End effector error for z position is: %04.8f" % ee_z_e)
+            print ("Overall end effector offset is: %04.8f units \n" % ee_offset)
 
-
+    for s in solutions:
+        
+        testSols(theta1, theta2, theta3, s[0], s[1], s[2], wc, test_case)
 
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 3
+    test_case_number = 2
 
     test_code(test_cases[test_case_number])
