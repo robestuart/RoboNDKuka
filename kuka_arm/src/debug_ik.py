@@ -13,9 +13,13 @@ to find the position of the wrist center. These newly generated test cases can b
 '''
 
 test_cases = {1:[[[2.16135,-1.42635,1.55109],
+
                   [0.708611,0.186356,-0.157931,0.661967]],
+
                   [1.89451,-1.44302,1.69366],
+
                   [-0.65,0.45,-0.36,0.95,0.79,0.49]],
+
               2:[[[-0.56754,0.93663,3.0038],
                   [0.62073, 0.48318,0.38759,0.480629]],
                   [-0.638,0.64198,2.9988],
@@ -24,7 +28,11 @@ test_cases = {1:[[[2.16135,-1.42635,1.55109],
                   [0.01735,-0.2179,0.9025,0.371016]],
                   [-1.1669,-0.17989,0.85137],
                   [-2.99,-0.12,0.94,4.06,1.29,-4.12]],
-              4:[],
+
+              4:[[[2.43359, -0.334853, 1.85094],
+                  [-0.00259764, -0.0356609, -0.074564, 0.996575]],
+                  [2.13473, -0.289878, 1.82929],
+                  [-0.13, 0.25, -0.2, 0.12, -0.12, -0.12]],
               5:[]}
 
 
@@ -165,15 +173,12 @@ def test_code(test_case):
 
 
     # wrist center is located along the end effector's z-axis in the negative direction 
-    wc = Matrix([[px],
-                [py],
-                [pz]])
-    wc = wc - dWc_g * z_vect_EE
+    wc = Matrix([[px], [py], [pz]]) - dWc_g * z_vect_EE
     
     # look down on link1 from above, project onto x-y plane to get first joint angle
     theta1 = atan2(wc[1], wc[0])
 
-    # projecting link2-link3-link5(WC) onto a vertical plane and calculating joint angles using law of cosines
+    # projecting link2-link3-link5(WC) triangle onto a vertical plane and calculating joint angles using law of cosines
     A = sqrt(s[a3]**2 + s[d4]**2)
     Bx = sqrt(wc[0]**2 + wc[1]**2) - s[a1]
     Bz = wc[2] - s[d1]
@@ -197,46 +202,53 @@ def test_code(test_case):
     # create rotation matrix from link 3 to link 6 using the fact that 
     # base_to_EE_RMat = R0_3 * R3_6
     R3_6 = R0_3.inv("LU") * base_to_EE_RMat
-    T3_6 = simplify(T3_4*T4_5*T5_6)
+    R3_6_analytical = simplify(T3_4[0:3,0:3]*T4_5[0:3,0:3]*T5_6[0:3,0:3])
     # print the analytical matrix to solve for euler angles using trig identities and atan2
-    # print(T3_6)
+    print(R3_6_analytical)
 
     # use the rotation matrix for the last 3 joints to solver for the three joint angles
     theta4 = atan2(R3_6[2,2], -R3_6[0,2])
     theta5 = atan2(sqrt(R3_6[0,2]**2 + R3_6[2,2]**2), R3_6[1,2])
+    # theta5_neg = atan2(-sqrt(R3_6[0,2]**2 + R3_6[2,2]**2), R3_6[1,2])
+    # theta5_2 = atan2(sqrt(R3_6[1,0]**2 + R3_6[1,1]**2), R3_6[1,2]) equivalent atan2 calculation
     theta6 = atan2(-R3_6[1,1], R3_6[1,0])    ## 
 
     # since atan2 is periodic about 2pi
     # equivalent rotations can be calculated by adding 2pi to any elements but it cannot exceed
-    # the physical constraints of the robot
     # -6.11 < theta4 < 6.11
     # -2.18 < theta5 < 2.18
     # -6.11 < theta6 < 6.11
 
     def check_2pi(angle, min, max):
-        possible = [angle]
-        
-        # adding positive 2pi
-        i = 1
-        while(True):
-            add_2pi = angle + 2*pi*i
+        possible = []
+        if type(angle) is list:
+            possible = angle
+        else:
+            possible = [angle]
+            angle = [angle]     # makes single value iterable
 
-            if (add_2pi < max):
-                possible.append(add_2pi)
-                i += 1
-            else:
-                break
-        
-        # adding negative 2pi
-        i = 1
-        while(True):
-            add_2pi = angle - 2*pi*i
+        for a in angle:
+            # adding positive 2pi
+            i = 1
+            while(True):
+                add_2pi = a + 2*pi*i
 
-            if (min < add_2pi):
-                possible.append(add_2pi)
-                i+=1
-            else:
-                break
+                if (add_2pi < max):
+                    possible.append(add_2pi)
+                    i += 1
+                else:
+                    break
+            
+            # adding negative 2pi
+            i = 1
+            while(True):
+                add_2pi = a - 2*pi*i
+
+                if (min < add_2pi):
+                    possible.append(add_2pi)
+                    i+=1
+                else:
+                    break
 
         # if angle + 2*pi < max:
         #     possible.append(angle + 2*pi)
@@ -262,6 +274,7 @@ def test_code(test_case):
         for c in combos:
             print(c)
         return combos
+
     solutions = ProduceEquivAngles(theta4, theta5, theta6)
     
     
@@ -328,6 +341,8 @@ def test_code(test_case):
         
         return (t_1_e, t_2_e, t_3_e, t_4_e, t_5_e, t_6_e)
 
+
+
     errors = []
     for s in solutions:
         errors.append(testSols(theta1, theta2, theta3, s[0], s[1], s[2], wc, test_case))
@@ -343,8 +358,10 @@ def test_code(test_case):
         print("t6:\t{:.2f}\t{:.2f}\t{:.2f}".format(test_case[2][5], s[2].evalf(), errors[i][5].evalf()))
         # print(errors)
 
+    # testSols(theta1, theta2, theta3, theta4, theta5, theta6, wc, test_case)
+
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 1
+    test_case_number = 4
 
     test_code(test_cases[test_case_number])
