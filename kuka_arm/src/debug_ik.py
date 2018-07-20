@@ -179,16 +179,16 @@ def test_code(test_case):
     theta1 = atan2(wc[1], wc[0])
 
     # projecting link2-link3-link5(WC) triangle onto a vertical plane and calculating joint angles using law of cosines
-    A = sqrt(s[a3]**2 + s[d4]**2)
-    Bx = sqrt(wc[0]**2 + wc[1]**2) - s[a1]
+    A = sqrt(pow(s[a3],2) + pow(s[d4],2))
+    Bx = sqrt(pow(wc[0],2) + pow(wc[1],2)) - s[a1]
     Bz = wc[2] - s[d1]
-    B = sqrt(Bx**2 + Bz**2)
+    B = sqrt(pow(Bx,2) + pow(Bz,2))
     C = s[a2]
 
     # internal angles of triangle formed by link2-link3-link5
-    angle_a = acos((-A**2 + B**2 + C**2)/(2*B*C))
-    angle_b = acos((-B**2 + A**2 + C**2)/(2*A*C))
-    angle_c = acos((-C**2 + B**2 + A**2)/(2*B*A))
+    angle_a = acos((-pow(A,2) + pow(B,2) + pow(C,2))/(2*B*C))
+    angle_b = acos((-pow(B,2) + pow(A,2) + pow(C,2))/(2*A*C))
+    angle_c = acos((-pow(C,2) + pow(B,2) + pow(A,2))/(2*B*A))
 
     # use geometric identities and directions found from inspecting the model calculate the joint angles
     theta2 = pi/2 - atan2(Bz, Bx) - angle_a
@@ -208,9 +208,9 @@ def test_code(test_case):
 
     # use the rotation matrix for the last 3 joints to solver for the three joint angles
     theta4 = atan2(R3_6[2,2], -R3_6[0,2])
-    theta5 = atan2(sqrt(R3_6[0,2]**2 + R3_6[2,2]**2), R3_6[1,2])
-    # theta5_neg = atan2(-sqrt(R3_6[0,2]**2 + R3_6[2,2]**2), R3_6[1,2])
-    # theta5_2 = atan2(sqrt(R3_6[1,0]**2 + R3_6[1,1]**2), R3_6[1,2]) equivalent atan2 calculation
+    theta5 = atan2(sqrt(pow(R3_6[0,2],2) + pow(R3_6[2,2],2)), R3_6[1,2])
+    # theta5_neg = atan2(-sqrt(pow(R3_6[0,2],2) + pow(R3_6[2,2],2)), R3_6[1,2])
+    # theta5_2 = atan2(sqrt(pow(R3_6[1,0],2) + pow(R3_6[1,1],2)), R3_6[1,2]) equivalent atan2 calculation
     theta6 = atan2(-R3_6[1,1], R3_6[1,0])    ## 
 
     # since atan2 is periodic about 2pi
@@ -304,7 +304,7 @@ def test_code(test_case):
             wc_x_e = abs(your_wc[0]-test_case[1][0])
             wc_y_e = abs(your_wc[1]-test_case[1][1])
             wc_z_e = abs(your_wc[2]-test_case[1][2])
-            wc_offset = sqrt(wc_x_e**2 + wc_y_e**2 + wc_z_e**2)
+            wc_offset = sqrt(pow(wc_x_e,2) + pow(wc_y_e,2) + pow(wc_z_e,2))
             print ("\nWrist error for x position is: %04.8f" % wc_x_e)
             print ("Wrist error for y position is: %04.8f" % wc_y_e)
             print ("Wrist error for z position is: %04.8f" % wc_z_e)
@@ -333,7 +333,7 @@ def test_code(test_case):
             ee_x_e = abs(your_ee[0]-test_case[0][0][0])
             ee_y_e = abs(your_ee[1]-test_case[0][0][1])
             ee_z_e = abs(your_ee[2]-test_case[0][0][2])
-            ee_offset = sqrt(ee_x_e**2 + ee_y_e**2 + ee_z_e**2)
+            ee_offset = sqrt(pow(ee_x_e,2) + pow(ee_y_e,2) + pow(ee_z_e,2))
             print ("\nEnd effector error for x position is: %04.8f" % ee_x_e)
             print ("End effector error for y position is: %04.8f" % ee_y_e)
             print ("End effector error for z position is: %04.8f" % ee_z_e)
@@ -362,6 +362,6 @@ def test_code(test_case):
 
 if __name__ == "__main__":
     # Change test case number for different scenarios
-    test_case_number = 4
+    test_case_number = 2
 
     test_code(test_cases[test_case_number])
