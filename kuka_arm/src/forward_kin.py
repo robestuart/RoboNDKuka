@@ -71,13 +71,14 @@ R_corr = simplify(R_z * R_y)
 
 
 #### Numerically evaluate transforms (compare this with output of tf_echo!)
-print("T0_1 = ",T0_1.evalf(subs={q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
-print("T0_2 = ",T0_2.evalf(subs={q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
-print("T0_3 = ",T0_3.evalf(subs={q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
-print("T0_4 = ",T0_4.evalf(subs={q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
-print("T0_5 = ",T0_5.evalf(subs={q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
-print("T0_6 = ",T0_6.evalf(subs={q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
-print("T0_G = ",T0_G.evalf(subs={q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
+s={q1:0, q2:0, q3:0, q4:0, q5:0, q6:0}
+print("T0_1 = ",T0_1.evalf(subs=s))#{q1: 0, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
+print("T0_2 = ",T0_2.evalf(subs=s))#{q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
+print("T0_3 = ",T0_3.evalf(subs=s))#{q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
+print("T0_4 = ",T0_4.evalf(subs=s))#{q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
+print("T0_5 = ",T0_5.evalf(subs=s))#{q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
+print("T0_6 = ",T0_6.evalf(subs=s))#{q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
+print("T0_G = ",T0_G.evalf(subs=s))#{q1: -1.33, q2: -0.5, q3: 0.6, q4: -2.99, q5: 1.74, q6: -2.15}))
 
 # Total Homogenous transform between Base_link and Gripper_link with
 # orientation correction applied

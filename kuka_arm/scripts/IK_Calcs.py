@@ -64,7 +64,7 @@ class IK_Calcs:
         T5_6 = HomTransform(self.q6, self.alpha5, self.d6, self.a5)
         T6_G = HomTransform(self.q7, self.alpha6, self.d7, self.a6)
         
-        
+
         self.T0_1 = T0_1.subs(self.s)
         self.T0_2 = self.T0_1*T1_2.subs(self.s)
         self.T0_3 = self.T0_2*T2_3.subs(self.s)
@@ -73,22 +73,24 @@ class IK_Calcs:
         self.T0_6 = self.T0_5*T5_6.subs(self.s)
         self.T0_G = self.T0_6*T6_G.subs(self.s)
 
-        print("simplifying T0_1")
-        self.T0_1.simplify()
-        print("simplifying T0_2")
-        self.T0_2.simplify()
-        print("simplifying T0_3")
+        # print("simplifying T0_1")
+        # self.T0_1.simplify()
+        # print("simplifying T0_2")
+        # self.T0_2.simplify()
+        # print("simplifying T0_3")
         self.T0_3.simplify()
-        print("simplifying T0_4")
-        self.T0_4.simplify()
-        print("simplifying T0_5")
-        self.T0_5.simplify()
-        print("simplifying T0_6")
-        self.T0_6.simplify()
-        print("simplifying T0_G")
+        # print("simplifying T0_4")
+        # self.T0_4.simplify()
+        # print("simplifying T0_5")
+        # self.T0_5.simplify()
+        # print("simplifying T0_6")
+        # self.T0_6.simplify()
+        # print("simplifying T0_G")
         self.T0_G.simplify()
 
-
+        # print('\n\n')
+        # print(self.T0_G)
+        # print('\n\n')
         # self.T0_G = (T0_1*T1_2*T2_3*T3_4*T4_5*T5_6*T6_G).subs(self.s)
         
         
@@ -168,7 +170,7 @@ class IK_Calcs:
         # solve for remaining thetas
         theta4, theta5, theta6 = self.calc_theta_456(base_to_EE_RMat_val, R0_3_val, (theta1, theta2, theta3), px, py, pz)
 
-        print("theta1:\t{}\ntheta2:\t{}\ntheta3:\t{}\ntheta4:\t{}\ntheta5:\t{}\ntheta6:\t{}".format(theta1,theta2,theta3,theta4,theta5,theta6))
+        if self.debug: print("theta1:\t{}\ntheta2:\t{}\ntheta3:\t{}\ntheta4:\t{}\ntheta5:\t{}\ntheta6:\t{}".format(theta1,theta2,theta3,theta4,theta5,theta6))
         # self.check_theta_456(theta4,theta5,theta6)
         self._check_limit('theta1', theta1)
         self._check_limit('theta2', theta2)
@@ -232,38 +234,6 @@ class IK_Calcs:
             print("theta2:\t{}".format(theta2))
             print("theta3:\t{}".format(theta3))
         return (theta1, theta2, theta3)
-
-    # def check_theta_123(self, theta1, theta2, theta3):
-    #     """
-    #     limits for joints 1-3:
-    #     -3.23 < J1 < 3.23
-    #     -0.79 < J2 < 1.48
-    #     -3.67 < J3 < 1.13
-    #     """
-    #     self._check_theta('theta1', theta1, -3.23, 3.23)
-    #     self._check_theta('theta2', theta2, -0.79, 1.48)
-    #     self._check_theta('theta3', theta3, -3.67, 1.13)
-
-        
-    # def _check_theta(self,lbl, theta, t_min, t_max):
-    #     if t_min < theta and theta < t_max:
-    #         return true
-    #     else:
-    #         print(lbl + " IS OUTSIDE OF RANGE!!!!")
-    #         print(theta)
-    #         return false
-
-    # def check_theta_456(self, theta4, theta5, theta6):
-    #     """
-    #     limits for joints 4-6:
-    #     -6.11 < J4 < 6.11
-    #     -2.18 < J5 < 2.18
-    #     -6.11 < J6 < 6.11
-    #     """
-    #     self._check_theta('theta4', theta4, -6.11, 6.11)
-    #     self._check_theta('theta5', theta5, -2.18, 2.18)
-    #     self._check_theta('theta6', theta6, -6.11, 6.11)
-
 
     def _check_limit(self, theta_name, theta_val):
         if self.theta_min[theta_name] < theta_val and theta_val < self.theta_max[theta_name]:
@@ -339,14 +309,9 @@ class IK_Calcs:
         # create rotation matrix from link 3 to link 6 using the fact that 
         # base_to_EE_RMat = R0_3 * R3_6
         R3_6 = R0_3_val.transpose()*base_to_EE_RMat_val#R0_3_val.inv("LU") * base_to_EE_RMat_val
-        
-        # R3_6_analytical = simplify(T3_4[0:3,0:3]*T4_5[0:3,0:3]*T5_6[0:3,0:3])
-        # print the analytical matrix to solve for euler angles using trig identities and atan2
-        # print(R3_6_analytical)
 
         # use the rotation matrix for the last 3 joints to solve for the three joint angles
         theta4 = atan2(R3_6[2,2], -R3_6[0,2])
-        # theta5 = atan2(sqrt(pow(R3_6[0,2],2) + pow(R3_6[2,2],2)), R3_6[1,2])
         theta5 = atan2(sqrt(R3_6[0,2]*R3_6[0,2] + R3_6[2,2]*R3_6[2,2]), R3_6[1,2])
 
         theta5_neg = atan2(-sqrt(pow(R3_6[0,2],2) + pow(R3_6[2,2],2)), R3_6[1,2])
@@ -354,10 +319,6 @@ class IK_Calcs:
         
         theta6 = atan2(-R3_6[1,1], R3_6[1,0])    ## 
 
-        # sols = [(theta4, theta5, theta6), (theta4, theta5_neg, theta6), (theta4, theta5_2, theta6)]
-        # enumerate_sols((theta4), (theta5, theta5_neg, theta5_2), (theta6))
-        
-        
         ### iterate through potential combinations of solutions and compare to desired end effector position
         if multi_sol_check:
             min_error = 1000.0
